@@ -2,6 +2,7 @@ import asyncio
 import re
 import os
 import time
+import random
 from datetime import datetime, timedelta, timezone
 from telethon import TelegramClient, events
 from playwright.async_api import async_playwright
@@ -66,23 +67,24 @@ class TradeEngine:
                     if await locator.is_visible(timeout=500):
                         await self.notify(f"🧹 Closing popup ({selector})...")
                         await locator.click(force=True)
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(random.uniform(0.5, 1.5))
         except: pass
 
     async def safe_click(self, selector, timeout=10000):
-        """Standardized click with popup handling and retry."""
+        """Standardized click with popup handling and retry with randomized delay."""
         try:
             await self.handle_popups()
             locator = self.page.locator(selector).first
             await locator.scroll_into_view_if_needed(timeout=5000)
+            await asyncio.sleep(random.uniform(0.2, 0.6))
             await locator.click(force=True, timeout=timeout)
             return True
         except Exception as e:
-            # Try one more time after a forced popup check and escape
             await self.page.keyboard.press("Escape")
             await self.handle_popups()
             try:
                 locator = self.page.locator(selector).first
+                await asyncio.sleep(random.uniform(0.2, 0.6))
                 await locator.click(force=True, timeout=timeout)
                 return True
             except:
@@ -125,27 +127,30 @@ class TradeEngine:
         return 0.0
 
     async def verify_result_via_history(self, asset_name):
-        """Checks the 'Closed Trades' panel for the actual profit of the last trade for a specific asset."""
+        """Checks the 'Closed Trades' panel with extended wait and robust validation."""
         try:
             await self.page.keyboard.press("Alt+T") 
-            await asyncio.sleep(3) 
+            await asyncio.sleep(8) # Increased wait for trade settlement
             
             # Find the first history item that matches the asset name
             items = self.page.locator(".closed-trades-list__item")
             count = await items.count()
             
-            for i in range(count):
+            # Check the last 3 items to be sure we find the most recent trade
+            for i in range(min(count, 3)):
                 item = items.nth(i)
                 asset_label = await item.locator(".pair").inner_text()
                 if asset_name.replace(" OTC", "").replace("/", "").upper() in asset_label.replace("/", "").upper():
                     profit_text = await item.locator(".profit").inner_text()
-                    val = float(re.sub(r'[^\d.]', '', profit_text))
+                    # Look for actual positive/negative profit value
+                    val = float(re.sub(r'[^\d.-]', '', profit_text))
                     await self.page.keyboard.press("Alt+T")
                     return "WIN" if val > 0 else "LOSS"
             
             await self.page.keyboard.press("Alt+T")
             return "UNKNOWN"
-        except:
+        except Exception as e:
+            print(f"History Check Error: {e}")
             try: await self.page.keyboard.press("Alt+T")
             except: pass
             return "UNKNOWN"
@@ -222,7 +227,7 @@ class TradeEngine:
 
                 if not clicked:
                     raise Exception(f"Could not click any pair selector for Slot {slot_id}")
-                await asyncio.sleep(1)
+                await asyncio.sleep(random.uniform(0.5, 1.2))
                 await self.snap(f"Slot_{slot_id}_Asset_Search")
                 
                 # The search field is usually global or opens in a modal
@@ -230,7 +235,7 @@ class TradeEngine:
                 await search_locator.wait_for(state="visible", timeout=10000)
                 await search_locator.click()
                 await search_locator.fill(query)
-                await asyncio.sleep(2)
+                await asyncio.sleep(random.uniform(0.8, 1.5))
 
                 items = self.page.locator("ul.assets-block__alist li.alist__item")
                 count = await items.count()
@@ -260,23 +265,29 @@ class TradeEngine:
         """Logic for precision firing using slot-specific selectors."""
         try:
             amount_selector = f"#put-call-buttons-chart-{slot_id} .block--bet-amount input"
-            if is_mg:
-                # Set MG amount - targeting the correct input for the slot
-                amount_input = self.page.locator(amount_selector)
-                curr_val_str = await amount_input.get_attribute("value") or "1"
-                # Clean commas for calculation
+            amount_input = self.page.locator(amount_selector)
+            
+            if not is_mg:
+                # First entry: force base stake
+                await amount_input.fill("5.0")
+            else:
+                # MG: use standard multiplier logic
+                curr_val_str = await amount_input.get_attribute("value") or "5"
                 curr_val = float(curr_val_str.replace(",", ""))
-                await amount_input.fill(str(round(curr_val * 2.2, 2))) # Standard MG multiplier
+                await amount_input.fill(str(round(curr_val * 2.2, 2)))
+            
+            await asyncio.sleep(random.uniform(0.2, 0.5))
 
             await self.notify(f"⏲️ [Slot {slot_id}] Precision wait for {target_h:02d}:{target_m:02d}:00")
             
             while True:
                 now = datetime.now(SIGNAL_TZ)
-                if now.hour == target_h and now.minute == target_m:
+                # Add a tiny bit of random buffer time before the target minute
+                if now.hour == target_h and now.minute == target_m and now.second >= random.randint(0, 2):
                     break
                 if (now.hour == target_h and now.minute > target_m) or now.hour > target_h:
                     break
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(random.uniform(0.05, 0.15))
 
             # Targeted CSS Click using slot-specific ID
             btn_selector = f"#put-call-buttons-chart-{slot_id} .btn-{'call' if 'BUY' in direction.upper() else 'put'}"
@@ -351,14 +362,13 @@ async def signal_task(sig):
                             break
                         else:
                             await engine.notify(f"🔄 [Slot {slot_id}] LOSS: Running Martingale @ {mg_time}")
-                            start_bal = curr_bal
                             await engine.internal_precision_fire(sig["direction"], mh, mm, slot_id, is_mg=True)
                             await engine.snap(f"Slot_{slot_id}_MG_Entry_{mg_time}")
 
                 # Reset logic for the slot
                 await asyncio.sleep(40) # Wait 40s for the last trade to settle
                 amount_input = engine.page.locator(f"#put-call-buttons-chart-{slot_id} .block--bet-amount input")
-                await amount_input.fill("1") # Reset to base amount
+                await amount_input.fill("5.0") # Reset to base amount
                 await engine.notify(f"📊 [Slot {slot_id}] Cycle Finished. Bal: ${await engine.get_balance()}")
                 await engine.snap(f"Slot_{slot_id}_Cycle_Finished")
         finally:
