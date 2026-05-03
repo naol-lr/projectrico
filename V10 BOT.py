@@ -5,7 +5,9 @@ import time
 import random
 from datetime import datetime, timedelta, timezone
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 from playwright.async_api import async_playwright
+import os
 
 # ==========================================
 # 🔐 CONFIGURATION
@@ -13,9 +15,6 @@ from playwright.async_api import async_playwright
 API_ID = int(os.environ.get("API_ID", 38859657))
 API_HASH = os.environ.get("API_HASH", "96c90da3f365759523898fae8ee7fdc7")
 
-from telethon.sessions import StringSession
-
-# ... (rest of configuration)
 # Channels to monitor
 ALL_CHANNELS = [-1002074799242, -1003584508030, -1002281357812]
 
@@ -26,7 +25,14 @@ POCKET_URL = "https://pocketoption.com/en/cabinet/demo-quick-high-low/"
 SIGNAL_TZ = timezone(timedelta(hours=-4)) 
 
 SESSION_STRING = os.environ.get("SESSION_STRING")
-client = TelegramClient(StringSession(SESSION_STRING) if SESSION_STRING else "railway_session", API_ID, API_HASH)
+
+# Only use StringSession if a string is provided; otherwise, fallback to file
+if SESSION_STRING:
+    print("🚀 Using StringSession from environment variable.")
+    client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+else:
+    print("📁 Using file-based session.")
+    client = TelegramClient("railway_session", API_ID, API_HASH)
 
 # =========================
 # 🤖 ULTIMATE TRADE ENGINE
@@ -439,7 +445,9 @@ async def handler(event):
         if sig: asyncio.create_task(signal_task(sig))
 
 async def main():
-    await client.start(phone=lambda: '')
+    # If using StringSession, phone needs to be an empty string to skip prompt
+    # If using file-based session, it doesn't need to prompt if session is valid
+    await client.start(phone=lambda: '') 
     await engine.start()
     await client.run_until_disconnected()
 
