@@ -22,7 +22,7 @@ POCKET_URL = "https://pocketoption.com/en/cabinet/demo-quick-high-low/"
 # Base timezone for the script logic (UTC-4 is common for signals)
 SIGNAL_TZ = timezone(timedelta(hours=-4)) 
 
-client = TelegramClient("signal_session", API_ID, API_HASH)
+client = TelegramClient("railway_session", API_ID, API_HASH)
 
 # =========================
 # 🤖 ULTIMATE TRADE ENGINE
