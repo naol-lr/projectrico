@@ -435,7 +435,8 @@ async def handler(event):
         if sig: asyncio.create_task(signal_task(sig))
 
 async def main():
-    await client.start()
+    phone_or_token = os.environ.get("PHONE_OR_TOKEN")
+    await client.start(phone=lambda: phone_or_token)
     await engine.start()
     await client.run_until_disconnected()
 
