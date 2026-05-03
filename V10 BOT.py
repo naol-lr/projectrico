@@ -28,8 +28,13 @@ SESSION_STRING = os.environ.get("SESSION_STRING")
 
 # Only use StringSession if a string is provided; otherwise, fallback to file
 if SESSION_STRING:
-    print("🚀 Using StringSession from environment variable.")
-    client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+    print(f"🚀 Using StringSession. Length: {len(SESSION_STRING)}")
+    try:
+        client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+    except Exception as e:
+        print(f"❌ Failed to initialize StringSession: {e}")
+        print("Falling back to file-based session.")
+        client = TelegramClient("railway_session", API_ID, API_HASH)
 else:
     print("📁 Using file-based session.")
     client = TelegramClient("railway_session", API_ID, API_HASH)
