@@ -139,15 +139,18 @@ class TradeEngine:
         for attempt in range(8):
             try:
                 for selector in selectors:
-                    locator = self.page.locator(selector).first
-                    if await locator.is_visible(timeout=2000):
-                        text = await locator.inner_text()
-                        clean_text = re.sub(r'[^\d.]', '', text.replace(',', ''))
-                        if clean_text:
-                            try:
-                                return float(clean_text)
-                            except ValueError:
-                                continue
+                    locators = self.page.locator(selector)
+                    count = await locators.count()
+                    for i in range(count):
+                        locator = locators.nth(i)
+                        if await locator.is_visible(timeout=2000):
+                            text = (await locator.inner_text()).strip()
+                            clean_text = re.sub(r'[^\d.]', '', text.replace(',', ''))
+                            if clean_text:
+                                try:
+                                    return float(clean_text)
+                                except ValueError:
+                                    continue
                 await asyncio.sleep(1.5)
             except Exception as e:
                 print(f"Balance Extraction Attempt {attempt+1} failed: {e}")
@@ -209,6 +212,10 @@ class TradeEngine:
             try:
                 await self.notify(f"🚀 Navigation Attempt {attempt+1}...")
                 await self.page.goto(POCKET_URL, wait_until="domcontentloaded", timeout=120000)
+                await self.notify(f"DEBUG: Navigated to {self.page.url}")
+                if "login" in self.page.url:
+                    await self.notify("DEBUG: Attempting to snap STUCK_AT_LOGIN"); await self.snap("STUCK_AT_LOGIN"); await self.notify("DEBUG: Snap complete")
+                    await self.notify("❌ CRITICAL: Bot is at LOGIN page")
                 await asyncio.sleep(20) 
                 
                 await self.handle_popups()
