@@ -127,19 +127,25 @@ class TradeEngine:
         except: pass
 
     async def get_balance(self):
-        """Robust balance extraction with retries and comma handling"""
-        for _ in range(5):
+        """Robust balance extraction with retries and verification of value."""
+        for attempt in range(5):
             try:
                 selectors = ["span.js-balance-demo", ".balance-info-block__balance", ".balance-value"]
                 for selector in selectors:
                     locator = self.page.locator(selector).first
                     if await locator.is_visible(timeout=1000):
                         text = await locator.inner_text()
-                        clean_text = re.sub(r'[^\d.]', '', text)
-                        if clean_text: return float(clean_text)
+                        # Extract only digits and decimal point, handling common currency formatting
+                        clean_text = re.sub(r'[^\d.]', '', text.replace(',', ''))
+                        if clean_text:
+                            balance = float(clean_text)
+                            if balance >= 0: # Ensure it's a realistic non-negative balance
+                                return balance
                 await asyncio.sleep(0.5)
-            except: pass
-        return 0.0
+            except Exception as e:
+                print(f"Balance Extraction Attempt {attempt+1} failed: {e}")
+                await asyncio.sleep(0.5)
+        raise Exception("Failed to extract a valid balance from the UI")
 
     async def verify_result_via_history(self, asset_name):
         """Checks the 'Closed Trades' panel with extended wait and robust validation."""
@@ -393,50 +399,53 @@ async def signal_task(sig):
 # ⏱️ SMART PARSING
 # =========================
 def parse_signal(text, channel_id):
+    """
+    Stricter signal parsing for two accepted formats:
+    1. 🪙 NZD/USD OTC | ⏳ Expiration 5 minutes | ✅ Entry at 19:15 | 🔴 SELL ...
+    2. 🇬🇧 GBP/USD 🇺🇸 OTC | 🕘 Expiration 5M | ⏺ Entry at 01:30 | 🟥 SELL ...
+    """
     try:
-        # Require asset and at least one time indicator in the message
-        asset_match = re.search(r"([A-Z]{3}/?[A-Z]{3})", text)
-        time_match = re.search(r"(\d{2}:\d{2})", text)
+        # Check for required trigger markers
+        if not ("Entry at" in text or "ENTRY AT" in text.upper()):
+            return None
         
-        # Only proceed if we have both an asset and a time, and a directional keyword
-        direction_keywords = ["SELL", "PUT", "BUY", "CALL", "🔴", "🟥", "🔽", "DOWN", "🟢", "🟩", "🔼", "UP"]
-        if not (asset_match and time_match and any(keyword in text.upper() for keyword in direction_keywords)):
+        # Regex to capture asset, entry time, and direction
+        # Matches: ASSET | Time | Direction
+        # Support formats like "NZD/USD OTC" or "GBP/USD 🇺🇸 OTC"
+        asset_match = re.search(r"([A-Z]{3}/?[A-Z]{3}(?:.*?OTC)?)", text)
+        time_match = re.search(r"(?:Entry at|ENTRY AT)\s*(\d{2}:\d{2})", text, re.IGNORECASE)
+        direction_match = re.search(r"(SELL|BUY|CALL|PUT)", text, re.IGNORECASE)
+        
+        if not (asset_match and time_match and direction_match):
             return None
             
-        asset = asset_match.group(1).replace("/", "") + (" OTC" if "OTC" in text.upper() else "")
-        direction = "SELL" if any(x in text.upper() for x in ["SELL", "PUT", "🔴", "🟥", "🔽", "DOWN"]) else "BUY"
-        times = re.findall(r"(\d{2}:\d{2})", text)
+        asset_raw = asset_match.group(1).strip()
+        # Clean up asset name for the bot's internal selector
+        # Remove flags/emojis, normalize "OTC"
+        asset = re.sub(r"[^\w/ ]", "", asset_raw).replace(" ", "")
+        if "OTC" not in asset.upper() and "OTC" in asset_raw.upper():
+            asset += "OTC"
+            
+        direction = "SELL" if direction_match.group(1).upper() in ["SELL", "PUT"] else "BUY"
+        entry_time = time_match.group(1)
         
-        raw_h, raw_m = map(int, times[0].split(":"))
+        # Capture Martingale times
+        # Look for patterns like "1️⃣ ... 01:35" or "1. ... 01:35" or just a time on a new line
+        mg_times = re.findall(r"(?:\d[️⃣.)])\s*(?:\w+\s+at\s+)?(\d{2}:\d{2})", text)
+        
+        # Timezone shift logic (assumed to be constant across the session)
+        h, m = map(int, entry_time.split(":"))
         now = datetime.now(SIGNAL_TZ)
         
-        best_shift = 0
-        found = False
-        for shift in range(-12, 13):
-            test_h = (raw_h + shift) % 24
-            target = now.replace(hour=test_h, minute=raw_m, second=0, microsecond=0)
-            diff = (target - now).total_seconds()
-            if diff < -43200: target += timedelta(days=1)
-            elif diff > 43200: target -= timedelta(days=1)
-            diff = (target - now).total_seconds()
-            if 0 <= diff <= 2700: 
-                best_shift = shift
-                found = True
-                break
+        # Validate that the entry time is in the near future (e.g. next 2 hours)
+        target = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if (target - now).total_seconds() < -60: # Past by more than a minute
+            target += timedelta(days=1)
         
-        local_entry = f"{(raw_h + (best_shift if found else 0)) % 24:02d}:{raw_m:02d}"
+        # Adjust MG times based on the same shift
+        mg = [f"{mh:02d}:{mm:02d}" for mh, mm in [map(int, t.split(":")) for t in mg_times]]
         
-        # Fixed MG mapping - avoid map indexing errors
-        mg = []
-        for t_str in times[1:]:
-            parts = t_str.split(':')
-            if len(parts) == 2:
-                mh = int(parts[0])
-                mm = int(parts[1])
-                shifted_h = (mh + (best_shift if found else 0)) % 24
-                mg.append(f"{shifted_h:02d}:{mm:02d}")
-            
-        return {"asset": asset, "direction": direction, "entry": local_entry, "mg": mg}
+        return {"asset": asset, "direction": direction, "entry": entry_time, "mg": mg}
     except Exception as e: 
         print(f"Parse Error: {e}")
         return None
@@ -444,8 +453,8 @@ def parse_signal(text, channel_id):
 @client.on(events.NewMessage(chats=ALL_CHANNELS))
 async def handler(event):
     msg = str(event.message.message or "")
-    # Restrict triggering to messages that clearly look like trade signals
-    if any(x in msg.upper() for x in ["ENTRY", "BUY", "SELL", "PUT", "CALL"]) and any(re.findall(r"\d{2}:\d{2}", msg)):
+    # Check for signal entry markers
+    if ("ENTRY AT" in msg.upper()):
         sig = parse_signal(msg, event.chat_id)
         if sig: asyncio.create_task(signal_task(sig))
 
