@@ -1,3 +1,2 @@
-2026/05/01-07:38:43.268 84b Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/Sync Data/LevelDB/MANIFEST-000001
-2026/05/01-07:38:43.292 84b Recovering log #3
-2026/05/01-07:38:43.295 84b Reusing old log /home/naolgetu/projectrico/my_profile/Default/Sync Data/LevelDB/000003.log 
+2026/05/05-15:03:26.449 5a0 Creating DB /home/naolgetu/projectrico/my_profile/Default/Sync Data/LevelDB since it was missing.
+2026/05/05-15:03:26.682 5a0 Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/Sync Data/LevelDB/MANIFEST-000001

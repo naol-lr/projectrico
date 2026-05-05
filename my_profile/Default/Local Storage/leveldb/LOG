@@ -1,3 +1,2 @@
-2026/05/03-08:30:25.400 51e Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/Local Storage/leveldb/MANIFEST-000001
-2026/05/03-08:30:25.426 51e Recovering log #7
-2026/05/03-08:30:25.440 51e Reusing old log /home/naolgetu/projectrico/my_profile/Default/Local Storage/leveldb/000007.log 
+2026/05/05-15:03:26.546 5b3 Creating DB /home/naolgetu/projectrico/my_profile/Default/Local Storage/leveldb since it was missing.
+2026/05/05-15:03:26.689 5b3 Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/Local Storage/leveldb/MANIFEST-000001

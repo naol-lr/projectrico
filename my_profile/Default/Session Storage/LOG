@@ -1,3 +1,2 @@
-2026/05/03-08:30:28.439 51e Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/Session Storage/MANIFEST-000001
-2026/05/03-08:30:28.450 51e Recovering log #4
-2026/05/03-08:30:28.648 51e Reusing old log /home/naolgetu/projectrico/my_profile/Default/Session Storage/000004.log 
+2026/05/05-15:03:27.628 5b3 Creating DB /home/naolgetu/projectrico/my_profile/Default/Session Storage since it was missing.
+2026/05/05-15:03:28.506 5b3 Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/Session Storage/MANIFEST-000001

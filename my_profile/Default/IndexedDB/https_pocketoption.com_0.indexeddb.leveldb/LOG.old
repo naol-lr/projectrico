@@ -1,3 +1,7 @@
-2026/05/03-08:30:42.309 51e Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/05/03-08:30:42.310 51e Recovering log #146
-2026/05/03-08:30:42.336 51e Reusing old log /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/000146.log 
+2026/05/05-15:05:38.119 58d Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/05/05-15:05:38.125 58d Recovering log #4
+2026/05/05-15:05:38.129 58d Reusing old log /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/000004.log 
+2026/05/05-15:05:40.050 58e Level-0 table #8: started
+2026/05/05-15:05:40.063 58e Level-0 table #8: 4603 bytes OK
+2026/05/05-15:05:40.067 58e Delete type=0 #4
+2026/05/05-15:05:40.068 58c Manual compaction at level-0 from '\x00\x03\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x04\x00\x00\x00' @ 0 : 0; will stop at (end)

@@ -1,3 +1,13 @@
-2026/05/03-08:30:49.699 51e Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/05/03-08:30:49.699 51e Recovering log #146
-2026/05/03-08:30:49.705 51e Reusing old log /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/000146.log 
+2026/05/05-15:08:40.037 58c Reusing MANIFEST /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/05/05-15:08:40.037 58c Recovering log #7
+2026/05/05-15:08:40.044 58c Reusing old log /home/naolgetu/projectrico/my_profile/Default/IndexedDB/https_pocketoption.com_0.indexeddb.leveldb/000007.log 
+2026/05/05-15:08:40.493 58e Level-0 table #11: started
+2026/05/05-15:08:40.497 58e Level-0 table #11: 2080 bytes OK
+2026/05/05-15:08:40.505 58e Delete type=0 #7
+2026/05/05-15:08:40.507 58c Manual compaction at level-0 from '\x00\x04\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at '\x00\x04\x00\x00\x05' @ 217 : 1
+2026/05/05-15:08:40.508 58c Compacting 1@0 + 1@1 files
+2026/05/05-15:08:40.512 58c Generated table #12@0: 67 keys, 1861 bytes
+2026/05/05-15:08:40.512 58c Compacted 1@0 + 1@1 files => 1861 bytes
+2026/05/05-15:08:40.522 58c compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/05/05-15:08:40.523 58c Delete type=2 #11
+2026/05/05-15:08:40.525 58c Manual compaction at level-0 from '\x00\x04\x00\x00\x05' @ 217 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at (end)
