@@ -128,23 +128,32 @@ class TradeEngine:
 
     async def get_balance(self):
         """Robust balance extraction with retries and verification of value."""
-        for attempt in range(5):
+        selectors = [
+            "span.js-balance-demo", 
+            ".balance-info-block__balance", 
+            ".balance-value", 
+            ".cabinet-balance__value", 
+            ".user-balance-value"
+        ]
+        
+        for attempt in range(8):
             try:
-                selectors = ["span.js-balance-demo", ".balance-info-block__balance", ".balance-value"]
                 for selector in selectors:
                     locator = self.page.locator(selector).first
-                    if await locator.is_visible(timeout=1000):
+                    if await locator.is_visible(timeout=2000):
                         text = await locator.inner_text()
-                        # Extract only digits and decimal point, handling common currency formatting
                         clean_text = re.sub(r'[^\d.]', '', text.replace(',', ''))
                         if clean_text:
-                            balance = float(clean_text)
-                            if balance >= 0: # Ensure it's a realistic non-negative balance
-                                return balance
-                await asyncio.sleep(0.5)
+                            try:
+                                return float(clean_text)
+                            except ValueError:
+                                continue
+                await asyncio.sleep(1.5)
             except Exception as e:
                 print(f"Balance Extraction Attempt {attempt+1} failed: {e}")
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1.0)
+        
+        await self.snap("Balance_Extraction_Failure")
         raise Exception("Failed to extract a valid balance from the UI")
 
     async def verify_result_via_history(self, asset_name):
@@ -187,41 +196,41 @@ class TradeEngine:
                 "--no-sandbox", 
                 "--disable-gpu", 
                 "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled"
+                "--disable-blink-features=AutomationControlled",
+                "--window-size=1920,1080"
             ]
         )
         self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
         await self.page.set_viewport_size({"width": 1920, "height": 1080})
         
-        # Less aggressive blocking - some icons/UI elements might be svgs or small images
         await self.page.route("**/*.{mp4,webm,avi,ogg}", lambda route: route.abort())
 
         for attempt in range(3):
             try:
                 await self.notify(f"🚀 Navigation Attempt {attempt+1}...")
-                # Full 'load' state is safer for complex SPAs
-                await self.page.goto(POCKET_URL, wait_until="load", timeout=120000)
-                await asyncio.sleep(30) # Give it more time to settle
+                await self.page.goto(POCKET_URL, wait_until="networkidle", timeout=120000)
+                await asyncio.sleep(20) 
                 
+                await self.handle_popups()
                 await self.page.keyboard.press("Escape")
                 await self.handle_popups()
                 
-                # Wait for the main trading container to be visible
-                try:
-                    await self.page.wait_for_selector(".traderoom", timeout=30000)
-                except:
-                    await self.notify("⚠️ Dashboard container not found, continuing anyway...")
+                traderoom_visible = await self.page.locator(".traderoom, .cabinet-layout").is_visible(timeout=45000)
+                if not traderoom_visible:
+                    await self.notify("⚠️ Dashboard not found, attempting to force refresh...")
+                    await self.page.reload(wait_until="networkidle")
+                    await asyncio.sleep(15)
 
                 bal = await self.get_balance()
-                if bal > 0 or await self.page.locator(".balance-info-block").is_visible():
-                    self.is_ready = True
-                    await self.notify(f"✅ ENGINE READY. Initial Balance: ${bal}")
-                    await self.snap("Engine_Startup")
-                    return
+                self.is_ready = True
+                await self.notify(f"✅ ENGINE READY. Initial Balance: ${bal}")
+                await self.snap("Engine_Startup")
+                return
                 
             except Exception as e:
                 await self.notify(f"⚠️ Attempt {attempt+1} failed: {e}")
-                await asyncio.sleep(5)
+                await self.snap(f"Startup_Failure_Attempt_{attempt+1}")
+                await asyncio.sleep(10)
         
         await self.notify("❌ Engine failed to stabilize after 3 attempts.")
 
