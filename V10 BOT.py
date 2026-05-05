@@ -208,7 +208,7 @@ class TradeEngine:
         for attempt in range(3):
             try:
                 await self.notify(f"🚀 Navigation Attempt {attempt+1}...")
-                await self.page.goto(POCKET_URL, wait_until="networkidle", timeout=120000)
+                await self.page.goto(POCKET_URL, wait_until="domcontentloaded", timeout=120000)
                 await asyncio.sleep(20) 
                 
                 await self.handle_popups()
@@ -218,7 +218,7 @@ class TradeEngine:
                 traderoom_visible = await self.page.locator(".traderoom, .cabinet-layout").is_visible(timeout=45000)
                 if not traderoom_visible:
                     await self.notify("⚠️ Dashboard not found, attempting to force refresh...")
-                    await self.page.reload(wait_until="networkidle")
+                    await self.page.reload(wait_until="domcontentloaded")
                     await asyncio.sleep(15)
 
                 bal = await self.get_balance()
